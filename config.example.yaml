@@ -1,0 +1,30 @@
+freeswitch_instances:
+  - name: fs1
+    host: 192.168.1.10
+    port: 8021
+    password: ClueCon
+  - name: fs2
+    host: 192.168.1.11
+    port: 8021
+    password: ClueCon
+
+storage:
+  type: redis  # "memory" or "redis"
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    db: 0
+
+opentelemetry:
+  endpoint: localhost:4317
+  insecure: true
+  headers:
+    x-api-key: "your-api-key"
+
+http:
+  port: 8080
+
+logging:
+  level: info  # debug, info, warn, error
+  format: json # json, text
