@@ -3,12 +3,12 @@ package processor
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	"github.com/luongdev/fsagent/pkg/calculator"
 	"github.com/luongdev/fsagent/pkg/connection"
+	"github.com/luongdev/fsagent/pkg/logger"
 	"github.com/luongdev/fsagent/pkg/store"
 )
 
@@ -42,13 +42,13 @@ func NewEventProcessor(store store.StateStore, rtcpCalculator calculator.RTCPCal
 
 // Start begins event processing
 func (ep *eventProcessor) Start(ctx context.Context) error {
-	log.Println("Event processor started")
+	logger.Info("Event processor started")
 	return nil
 }
 
 // Stop gracefully stops event processing
 func (ep *eventProcessor) Stop() error {
-	log.Println("Event processor stopped")
+	logger.Info("Event processor stopped")
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (ep *eventProcessor) ProcessEvent(ctx context.Context, event interface{}, i
 		return fmt.Errorf("event missing Event-Name header")
 	}
 
-	log.Printf("Processing event: %s from instance: %s", eventName, instanceName)
+	logger.Debug("Processing event: %s from instance: %s", eventName, instanceName)
 
 	// Route to appropriate handler based on event type
 	switch eventName {
@@ -89,7 +89,7 @@ func (ep *eventProcessor) ProcessEvent(ctx context.Context, event interface{}, i
 		return ep.handleRTCPMessage(ctx, fsEvent, instanceName, "outbound")
 	default:
 		// Unknown event type - log and skip
-		log.Printf("Skipping unknown event type: %s", eventName)
+		logger.Debug("Skipping unknown event type: %s", eventName)
 		return nil
 	}
 }
@@ -98,29 +98,29 @@ func (ep *eventProcessor) ProcessEvent(ctx context.Context, event interface{}, i
 func (ep *eventProcessor) extractCorrelationID(event *connection.FSEvent) string {
 	// Priority 1: Other-Leg-Unique-ID (B-leg)
 	if correlationID := event.GetHeader("Other-Leg-Unique-ID"); correlationID != "" {
-		log.Printf("🔗 Correlation ID from Other-Leg-Unique-ID: %s", correlationID)
+		logger.Debug("🔗 Correlation ID from Other-Leg-Unique-ID: %s", correlationID)
 		return correlationID
 	}
 
 	// Priority 2: Unique-ID (A-leg)
 	if correlationID := event.GetHeader("Unique-ID"); correlationID != "" {
-		log.Printf("🔗 Correlation ID from Unique-ID: %s", correlationID)
+		logger.Debug("🔗 Correlation ID from Unique-ID: %s", correlationID)
 		return correlationID
 	}
 
 	// Priority 3: variable_sip_call_id
 	if correlationID := event.GetHeader("variable_sip_call_id"); correlationID != "" {
-		log.Printf("🔗 Correlation ID from variable_sip_call_id: %s", correlationID)
+		logger.Debug("🔗 Correlation ID from variable_sip_call_id: %s", correlationID)
 		return correlationID
 	}
 
 	// Priority 4: variable_global_call_id
 	if correlationID := event.GetHeader("variable_global_call_id"); correlationID != "" {
-		log.Printf("🔗 Correlation ID from variable_global_call_id: %s", correlationID)
+		logger.Debug("🔗 Correlation ID from variable_global_call_id: %s", correlationID)
 		return correlationID
 	}
 
-	log.Printf("⚠️  No correlation ID found in event headers")
+	logger.Debug("⚠️  No correlation ID found in event headers")
 	return ""
 }
 
@@ -172,9 +172,9 @@ func (ep *eventProcessor) handleChannelCreate(ctx context.Context, event *connec
 	}
 
 	if correlationID == "" {
-		log.Printf("⚠️  Created channel state: channel_id=%s, correlation_id=<EMPTY>, domain=%s", channelID, domainName)
+		logger.Debug("⚠️  Created channel state: channel_id=%s, correlation_id=<EMPTY>, domain=%s", channelID, domainName)
 	} else {
-		log.Printf("✅ Created channel state: channel_id=%s, correlation_id=%s, domain=%s", channelID, correlationID, domainName)
+		logger.Debug("✅ Created channel state: channel_id=%s, correlation_id=%s, domain=%s", channelID, correlationID, domainName)
 	}
 	return nil
 }
@@ -243,7 +243,7 @@ func (ep *eventProcessor) updateMediaInfo(ctx context.Context, event *connection
 		return fmt.Errorf("failed to update channel state: %w", err)
 	}
 
-	log.Printf("📡 Updated media info: channel_id=%s, correlation_id=%s, local=%s:%d, remote=%s:%d",
+	logger.Debug("📡 Updated media info: channel_id=%s, correlation_id=%s, local=%s:%d, remote=%s:%d",
 		channelID, state.CorrelationID, state.LocalMediaIP, state.LocalMediaPort, state.RemoteMediaIP, state.RemoteMediaPort)
 	return nil
 }
@@ -264,11 +264,11 @@ func (ep *eventProcessor) handleChannelDestroy(ctx context.Context, event *conne
 
 	// TODO: Trigger QoS calculation when QoS calculator is implemented
 	// For now, just log and delete the state
-	log.Printf("🔚 Channel destroyed: channel_id=%s, correlation_id=%s, instance=%s", channelID, correlationID, instanceName)
+	logger.Info("🔚 Channel destroyed: channel_id=%s, correlation_id=%s, instance=%s", channelID, correlationID, instanceName)
 
 	// Delete channel state
 	if err := ep.store.Delete(ctx, channelID); err != nil {
-		log.Printf("Warning: failed to delete channel state: %v", err)
+		logger.Warn("Failed to delete channel state: %v", err)
 	}
 
 	return nil
@@ -285,12 +285,12 @@ func (ep *eventProcessor) handleRTCPMessage(ctx context.Context, event *connecti
 	if ep.rtcpCalculator != nil {
 		metrics, err := ep.rtcpCalculator.CalculateMetrics(ctx, event, direction, instanceName)
 		if err != nil {
-			log.Printf("Error calculating RTCP metrics: %v", err)
+			logger.Error("Error calculating RTCP metrics: %v", err)
 			return err
 		}
 
 		// TODO: Export metrics to OTel when exporter is implemented
-		log.Printf("📊 RTCP metrics calculated: channel_id=%s, correlation_id=%s, domain=%s, direction=%s, jitter=%.2fms, packets_lost=%d",
+		logger.Info("📊 RTCP metrics: channel_id=%s, correlation_id=%s, domain=%s, direction=%s, jitter=%.2fms, packets_lost=%d",
 			metrics.ChannelID, metrics.CorrelationID, metrics.DomainName, metrics.Direction, metrics.Jitter, metrics.PacketsLost)
 	} else {
 		// Get channel state to log correlation_id
@@ -300,7 +300,7 @@ func (ep *eventProcessor) handleRTCPMessage(ctx context.Context, event *connecti
 			correlationID = state.CorrelationID
 		}
 
-		log.Printf("📊 RTCP message: channel_id=%s, correlation_id=%s, direction=%s, instance=%s",
+		logger.Debug("📊 RTCP message: channel_id=%s, correlation_id=%s, direction=%s, instance=%s",
 			channelID, correlationID, direction, instanceName)
 	}
 
