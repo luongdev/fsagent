@@ -3,7 +3,7 @@ package exporter
 import (
 	"context"
 
-	"github.com/yourusername/fsagent/pkg/calculator"
+	"github.com/luongdev/fsagent/pkg/calculator"
 )
 
 // MetricsExporter exports metrics to OpenTelemetry Collector
