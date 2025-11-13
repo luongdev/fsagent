@@ -20,6 +20,7 @@ type HTTPServer struct {
 	port         int
 	mu           sync.RWMutex
 	shutdownChan chan struct{}
+	stopped      bool
 }
 
 // NewHTTPServer creates a new HTTP server instance
@@ -68,6 +69,11 @@ func (s *HTTPServer) Stop() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Check if already stopped
+	if s.stopped {
+		return nil
+	}
+
 	if s.server == nil {
 		return nil
 	}
@@ -82,6 +88,7 @@ func (s *HTTPServer) Stop() error {
 	}
 
 	close(s.shutdownChan)
+	s.stopped = true
 	logger.Info("HTTP server stopped")
 	return nil
 }
