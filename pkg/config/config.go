@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -194,26 +193,14 @@ func loadFromEnv(cfg *Config) error {
 	}
 
 	// FreeSWITCH instances from environment
-	// Format: FSAGENT_FS_INSTANCES=name1:host1:port1:pass1,name2:host2:port2:pass2
-	if fsInstances := os.Getenv("FSAGENT_FS_INSTANCES"); fsInstances != "" {
-		instances := strings.Split(fsInstances, ",")
-		for _, instance := range instances {
-			parts := strings.Split(strings.TrimSpace(instance), ":")
-			if len(parts) != 4 {
-				return fmt.Errorf("invalid FSAGENT_FS_INSTANCES format, expected name:host:port:password")
-			}
-
-			port, err := strconv.Atoi(parts[2])
-			if err != nil {
-				return fmt.Errorf("invalid port in FSAGENT_FS_INSTANCES: %w", err)
-			}
-
-			cfg.FreeSwitchInstances = append(cfg.FreeSwitchInstances, FSConfig{
-				Name:     parts[0],
-				Host:     parts[1],
-				Port:     port,
-				Password: parts[3],
-			})
+	// Format: FSAGENT_FREESWITCH_INSTANCES='[{"name":"fs1","host":"192.168.1.10","port":8021,"password":"ClueCon"}]'
+	if fsInstances := os.Getenv("FSAGENT_FREESWITCH_INSTANCES"); fsInstances != "" {
+		var instances []FSConfig
+		if err := yaml.Unmarshal([]byte(fsInstances), &instances); err != nil {
+			return fmt.Errorf("invalid FSAGENT_FREESWITCH_INSTANCES format (expected JSON array): %w", err)
+		}
+		if len(instances) > 0 {
+			cfg.FreeSwitchInstances = instances
 		}
 	}
 
