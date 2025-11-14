@@ -42,10 +42,11 @@ type RedisConfig struct {
 
 // OTelConfig represents OpenTelemetry configuration
 type OTelConfig struct {
-	Endpoint       string            `yaml:"endpoint"`
-	Headers        map[string]string `yaml:"headers,omitempty"`
-	Insecure       bool              `yaml:"insecure"`
-	SkipZeroValues bool              `yaml:"skip_zero_values"` // Skip exporting metrics with zero values
+	Endpoint         string            `yaml:"endpoint"`
+	Headers          map[string]string `yaml:"headers,omitempty"`
+	Insecure         bool              `yaml:"insecure"`
+	SkipZeroValues   bool              `yaml:"skip_zero_values"`  // Skip exporting metrics with zero values
+	IncludeTimestamp bool              `yaml:"include_timestamp"` // Include Unix timestamp in metric attributes
 }
 
 // HTTPConfig represents HTTP server configuration
@@ -125,6 +126,11 @@ func loadFromEnv(cfg *Config) error {
 	// OpenTelemetry skip zero values
 	if skipZero := os.Getenv("FSAGENT_OTEL_SKIP_ZERO_VALUES"); skipZero != "" {
 		cfg.OpenTelemetry.SkipZeroValues = skipZero == "true"
+	}
+
+	// OpenTelemetry include timestamp
+	if includeTimestamp := os.Getenv("FSAGENT_OTEL_INCLUDE_TIMESTAMP"); includeTimestamp != "" {
+		cfg.OpenTelemetry.IncludeTimestamp = includeTimestamp == "true"
 	}
 
 	// HTTP port

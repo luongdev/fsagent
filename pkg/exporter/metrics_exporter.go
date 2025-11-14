@@ -39,13 +39,14 @@ type MetricsExporter interface {
 
 // otelExporter implements MetricsExporter interface
 type otelExporter struct {
-	config         *config.OTelConfig
-	meterProvider  *sdkmetric.MeterProvider
-	meter          metric.Meter
-	batchChan      chan interface{}
-	batchInterval  time.Duration
-	stopChan       chan struct{}
-	skipZeroValues bool
+	config           *config.OTelConfig
+	meterProvider    *sdkmetric.MeterProvider
+	meter            metric.Meter
+	batchChan        chan interface{}
+	batchInterval    time.Duration
+	stopChan         chan struct{}
+	skipZeroValues   bool
+	includeTimestamp bool
 
 	// RTCP Metrics (real-time)
 	rtcpJitter       metric.Float64Gauge
@@ -68,11 +69,12 @@ type otelExporter struct {
 // NewMetricsExporter creates a new OpenTelemetry metrics exporter
 func NewMetricsExporter(cfg *config.OTelConfig) (MetricsExporter, error) {
 	exporter := &otelExporter{
-		config:         cfg,
-		batchChan:      make(chan interface{}, 1000),
-		batchInterval:  10 * time.Second,
-		stopChan:       make(chan struct{}),
-		skipZeroValues: cfg.SkipZeroValues,
+		config:           cfg,
+		batchChan:        make(chan interface{}, 1000),
+		batchInterval:    10 * time.Second,
+		stopChan:         make(chan struct{}),
+		skipZeroValues:   cfg.SkipZeroValues,
+		includeTimestamp: cfg.IncludeTimestamp,
 	}
 
 	// Initialize OTel SDK
@@ -353,6 +355,11 @@ func (e *otelExporter) recordRTCPMetrics(ctx context.Context, metrics *calculato
 		attribute.String("direction", metrics.Direction),
 	}
 
+	// Add timestamp if configured
+	if e.includeTimestamp {
+		attrs = append(attrs, attribute.Int64("timestamp", time.Now().Unix()))
+	}
+
 	// Record jitter (skip if zero and skipZeroValues is enabled)
 	if !e.skipZeroValues || metrics.Jitter != 0 {
 		e.rtcpJitter.Record(ctx, metrics.Jitter, metric.WithAttributes(attrs...))
@@ -402,6 +409,11 @@ func (e *otelExporter) recordQoSMetrics(ctx context.Context, metrics *calculator
 		attribute.String("channel_id", metrics.ChannelID),
 		attribute.String("correlation_id", metrics.CorrelationID),
 		attribute.String("domain_name", metrics.DomainName),
+	}
+
+	// Add timestamp if configured
+	if e.includeTimestamp {
+		commonAttrs = append(commonAttrs, attribute.Int64("timestamp", time.Now().Unix()))
 	}
 
 	// Record MOS score with codec and endpoint info (skip if zero and skipZeroValues is enabled)

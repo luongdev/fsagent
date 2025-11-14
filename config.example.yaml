@@ -79,6 +79,7 @@ opentelemetry:
   endpoint: localhost:4317       # OTLP gRPC endpoint (no http:// prefix)
   insecure: true                 # Use insecure connection (no TLS) - set to false in production
   skip_zero_values: false        # Skip exporting metrics with zero values (reduces noise)
+  include_timestamp: false       # Include Unix timestamp in metric attributes (useful for Grafana filtering)
   
   # Optional: Custom headers for authentication
   # headers:
