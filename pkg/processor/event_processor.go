@@ -274,6 +274,11 @@ func (ep *eventProcessor) updateMediaInfo(ctx context.Context, event *connection
 		}
 	}
 
+	// Update domain name if present in event (may change during call lifecycle)
+	if domainName := ep.extractDomainName(event); domainName != "" {
+		state.DomainName = domainName
+	}
+
 	// Update media information
 	if localIP := event.GetHeader("variable_local_media_ip"); localIP != "" {
 		state.LocalMediaIP = localIP
@@ -303,6 +308,7 @@ func (ep *eventProcessor) updateMediaInfo(ctx context.Context, event *connection
 	logger.DebugWithFields(map[string]interface{}{
 		"channel_id":        channelID,
 		"correlation_id":    state.CorrelationID,
+		"domain_name":       state.DomainName,
 		"fs_instance":       instanceName,
 		"local_media_ip":    state.LocalMediaIP,
 		"local_media_port":  state.LocalMediaPort,
@@ -376,6 +382,23 @@ func (ep *eventProcessor) handleRTCPMessage(ctx context.Context, event *connecti
 	channelID := event.GetHeader("Unique-ID")
 	if channelID == "" {
 		return fmt.Errorf("RTCP event missing Unique-ID")
+	}
+
+	// Update domain name in state if present in RTCP event
+	if domainName := ep.extractDomainName(event); domainName != "" {
+		state, err := ep.store.Get(ctx, channelID)
+		if err == nil && state != nil && state.DomainName != domainName {
+			state.DomainName = domainName
+			state.UpdatedAt = time.Now()
+			ttl := 24 * time.Hour
+			if err := ep.store.Set(ctx, channelID, state, ttl); err != nil {
+				logger.ErrorWithFields(map[string]interface{}{
+					"channel_id":  channelID,
+					"domain_name": domainName,
+					"error":       err.Error(),
+				}, "Failed to update domain name in state")
+			}
+		}
 	}
 
 	// Calculate RTCP metrics if calculator is available
