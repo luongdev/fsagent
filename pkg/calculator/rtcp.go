@@ -139,8 +139,8 @@ func (rc *rtcpCalculator) AggregateMetrics(ctx context.Context, event *connectio
 		}
 	}
 
-	// Accumulate packet loss
-	state.TotalPacketLoss += int64(packetsLost)
+	// Update packet loss (Source-Lost is cumulative, not incremental)
+	state.TotalPacketLoss = int64(packetsLost)
 
 	state.UpdatedAt = time.Now()
 
