@@ -163,7 +163,7 @@ func (s *HTTPServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	// Encode and send response
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error("Failed to encode health response: %v", err)
+		logger.Warn("Failed to encode health response: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

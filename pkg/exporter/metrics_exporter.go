@@ -309,12 +309,12 @@ func (e *otelExporter) processBatch(ctx context.Context, batch []interface{}) {
 		case *calculator.RTCPMetrics:
 			if err := e.recordRTCPMetrics(ctx, metric); err != nil {
 				// Log error but continue processing
-				logger.ErrorWithFields(map[string]interface{}{
+				logger.WarnWithFields(map[string]interface{}{
 					"channel_id":     metric.ChannelID,
 					"correlation_id": metric.CorrelationID,
 					"fs_instance":    metric.InstanceName,
 					"error":          err.Error(),
-				}, "Error recording RTCP metrics")
+				}, "Failed to record RTCP metrics")
 			}
 		}
 	}

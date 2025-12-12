@@ -517,10 +517,10 @@ func (cm *DefaultConnectionManager) startEventForwarding(conn *FSConnection) {
 
 				if forwarder != nil {
 					if err := forwarder.ProcessEvent(cm.ctx, event, instanceName); err != nil {
-						logger.ErrorWithFields(map[string]interface{}{
+						logger.WarnWithFields(map[string]interface{}{
 							"fs_instance": instanceName,
 							"error":       err.Error(),
-						}, "Error processing event")
+						}, "Failed to process event")
 					}
 				} else {
 					logger.WarnWithFields(map[string]interface{}{
@@ -552,10 +552,10 @@ func (cm *DefaultConnectionManager) Stop() error {
 		go func(c *FSConnection) {
 			defer wg.Done()
 			if err := c.Close(); err != nil {
-				logger.ErrorWithFields(map[string]interface{}{
+				logger.WarnWithFields(map[string]interface{}{
 					"fs_instance": c.config.Name,
 					"error":       err.Error(),
-				}, "Error closing connection")
+				}, "Failed to close connection")
 			}
 		}(conn)
 	}

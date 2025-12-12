@@ -234,12 +234,12 @@ func (ep *eventProcessor) handleChannelDestroy(ctx context.Context, event *conne
 			// Export aggregated metrics
 			if ep.exporter != nil {
 				if err := ep.exporter.ExportRTCP(ctx, rtcpMetrics); err != nil {
-					logger.ErrorWithFields(map[string]interface{}{
+					logger.WarnWithFields(map[string]interface{}{
 						"channel_id":     channelID,
 						"correlation_id": rtcpMetrics.CorrelationID,
 						"fs_instance":    instanceName,
 						"error":          err.Error(),
-					}, "Error exporting aggregated RTCP metrics")
+					}, "Failed to export aggregated RTCP metrics")
 				}
 			}
 
@@ -275,7 +275,7 @@ func (ep *eventProcessor) handleRTCPMessage(ctx context.Context, event *connecti
 			state.UpdatedAt = time.Now()
 			ttl := 24 * time.Hour
 			if err := ep.store.Set(ctx, channelID, state, ttl); err != nil {
-				logger.ErrorWithFields(map[string]interface{}{
+				logger.WarnWithFields(map[string]interface{}{
 					"channel_id":  channelID,
 					"domain_name": domainName,
 					"error":       err.Error(),
@@ -304,12 +304,12 @@ func (ep *eventProcessor) handleRTCPMessage(ctx context.Context, event *connecti
 		// Export if 30 seconds elapsed since last export
 		if shouldExport && rtcpMetrics != nil && ep.exporter != nil {
 			if err := ep.exporter.ExportRTCP(ctx, rtcpMetrics); err != nil {
-				logger.ErrorWithFields(map[string]interface{}{
+				logger.WarnWithFields(map[string]interface{}{
 					"channel_id":     channelID,
 					"correlation_id": rtcpMetrics.CorrelationID,
 					"fs_instance":    instanceName,
 					"error":          err.Error(),
-				}, "Error exporting periodic RTCP metrics")
+				}, "Failed to export periodic RTCP metrics")
 			} else {
 				logger.DebugWithFields(map[string]interface{}{
 					"channel_id":     channelID,

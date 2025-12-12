@@ -119,6 +119,36 @@ func (rc *rtcpCalculator) AggregateMetrics(ctx context.Context, event *connectio
 		}
 	}
 
+	// Extract packet count and octets from RTCP headers
+	var packetCount int64
+	var octetCount int64
+
+	if direction == "inbound" {
+		// For inbound RTCP, read from Source0-* headers
+		if packetStr := event.GetHeader("Source0-Packet-Count"); packetStr != "" {
+			if packets, err := strconv.ParseInt(packetStr, 10, 64); err == nil {
+				packetCount = packets
+			}
+		}
+		if octetStr := event.GetHeader("Source0-Octet-Count"); octetStr != "" {
+			if octets, err := strconv.ParseInt(octetStr, 10, 64); err == nil {
+				octetCount = octets
+			}
+		}
+	} else {
+		// For outbound RTCP, read from Sender-* headers
+		if packetStr := event.GetHeader("Sender-Packet-Count"); packetStr != "" {
+			if packets, err := strconv.ParseInt(packetStr, 10, 64); err == nil {
+				packetCount = packets
+			}
+		}
+		if octetStr := event.GetHeader("Sender-Octet-Count"); octetStr != "" {
+			if octets, err := strconv.ParseInt(octetStr, 10, 64); err == nil {
+				octetCount = octets
+			}
+		}
+	}
+
 	// Update aggregation
 	state.RTCPSampleCount++
 
@@ -142,6 +172,19 @@ func (rc *rtcpCalculator) AggregateMetrics(ctx context.Context, event *connectio
 	// Update packet loss (Source-Lost is cumulative, not incremental)
 	state.TotalPacketLoss = int64(packetsLost)
 
+	// Update packet and octet counts based on direction
+	if direction == "inbound" {
+		// Update receive counters (cumulative values from RTCP)
+		state.RecvPackets = packetCount
+		state.RecvOctets = octetCount
+		state.RecvPacketsLost = packetsLost
+	} else {
+		// Update send counters (cumulative values from RTCP)
+		state.SendPackets = packetCount
+		state.SendOctets = octetCount
+		state.SendPacketsLost = packetsLost
+	}
+
 	state.UpdatedAt = time.Now()
 
 	// Store updated state
@@ -158,6 +201,12 @@ func (rc *rtcpCalculator) AggregateMetrics(ctx context.Context, event *connectio
 		"current_jitter":    jitter,
 		"avg_jitter":        state.AvgJitter,
 		"total_packet_loss": state.TotalPacketLoss,
+		"packet_count":      packetCount,
+		"octet_count":       octetCount,
+		"recv_packets":      state.RecvPackets,
+		"send_packets":      state.SendPackets,
+		"recv_octets":       state.RecvOctets,
+		"send_octets":       state.SendOctets,
 	}, "RTCP metrics aggregated")
 
 	// Check if we should export (every 30 seconds)
